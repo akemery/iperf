@@ -109,7 +109,7 @@ iperf_server_listen(struct iperf_test *test)
 int
 iperf_accept(struct iperf_test *test)
 {
-    int s, s1;
+    int s;
     signed char rbuf = ACCESS_DENIED;
     socklen_t len;
     struct sockaddr_storage addr;
@@ -118,22 +118,6 @@ iperf_accept(struct iperf_test *test)
     if ((s = accept(test->listener, (struct sockaddr *) &addr, &len)) < 0) {
         i_errno = IEACCEPT;
         return -1;
-    }
-    if(test->get_receiver_kpi){
-        if((s1 = accept(test->listener, (struct sockaddr *) &addr, &len))<0){
-            i_errno = IEACCEPT;
-            return -1;
-        }
-        if(test->kpi_sck == -1){
-            test->kpi_sck = s1; 
-            // set TCP_NODELAY for lower latency on kpi control messages
-            int flag = 1;
-            if (setsockopt(test->kpi_sck, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int))) {
-                i_errno = IESETNODELAY;
-                return -1;
-            }
-        }
-    	fprintf(stderr, "Just create kpi channel (%d)\n", s1);
     }
     if (test->ctrl_sck == -1) {
         /* Server free, accept new client */
@@ -282,7 +266,6 @@ server_timer_proc(TimerClientData client_data, struct iperf_time *nowP)
         iperf_free_stream(sp);
     }
     close(test->ctrl_sck);
-    close(test->kpi_sck);
 }
 
 static void
@@ -414,10 +397,6 @@ cleanup_server(struct iperf_test *test)
     }
     if (test->prot_listener > -1) {     // May remain open if create socket failed
 	close(test->prot_listener);
-    }
-    
-    if (test->kpi_sck > 0) {
-	close(test->kpi_sck);
     }
     
     /* Cancel any remaining timers. */

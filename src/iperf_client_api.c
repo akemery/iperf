@@ -361,13 +361,6 @@ iperf_connect(struct iperf_test *test)
         return -1;
     }
     
-    if(test->get_receiver_kpi){
-        if(test->kpi_sck < 0)
-            //create the kpi control channel
-    	    test->kpi_sck = netdial(test->settings->domain, Ptcp, test->bind_address, test->bind_dev, 0, test->server_hostname, test->server_port, test->settings->connect_timeout);
-    	fprintf(stderr, "just create kpi channel %d\n", test->kpi_sck);
-    }
-
     // set TCP_NODELAY for lower latency on control messages
     int flag = 1;
     if (setsockopt(test->ctrl_sck, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int))) {

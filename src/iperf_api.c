@@ -142,12 +142,6 @@ iperf_get_control_socket(struct iperf_test *ipt)
 }
 
 int
-iperf_get_kpi_socket(struct iperf_test *ipt)
-{
-    return ipt->kpi_sck;
-}
-
-int
 iperf_get_control_socket_mss(struct iperf_test *ipt)
 {
     return ipt->ctrl_sck_mss;
@@ -2670,7 +2664,6 @@ iperf_defaults(struct iperf_test *testp)
     testp->remote_congestion_used = NULL;
     testp->server_port = PORT;
     testp->ctrl_sck = -1;
-    testp->kpi_sck  = -1;
     testp->prot_listener = -1;
     testp->other_side_has_retransmits = 0;
 
@@ -2953,7 +2946,6 @@ iperf_reset_test(struct iperf_test *test)
     
     test->ctrl_sck = -1;
     test->prot_listener = -1;
-    test->kpi_sck  = -1;
 
     test->bytes_sent = 0;
     test->blocks_sent = 0;
