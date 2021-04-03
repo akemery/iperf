@@ -167,7 +167,7 @@ iperf_handle_message_server(struct iperf_test *test)
 {
     int rval;
     struct iperf_stream *sp;
-    char tcpinfo_message[255];
+    char tcpinfo_message[1024];
     signed char tmp_state = test->state;
     
     // XXX: Need to rethink how this behaves to fit API
@@ -227,7 +227,7 @@ iperf_handle_message_server(struct iperf_test *test)
             test->state = IPERF_DONE;
             break;
         case IPERF_KPI:
-            if ((rval = read(test->ctrl_sck, (char*) tcpinfo_message, 129)) <= 0) {
+            if ((rval = read(test->ctrl_sck, (char*) tcpinfo_message, 1024)) <= 0) {
                 if (rval == 0) {
                     i_errno = IECTRLCLOSE;
                     return -1;

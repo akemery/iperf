@@ -237,7 +237,7 @@ iperf_handle_message_client(struct iperf_test *test)
 {
     int rval;
     int32_t err;
-    char tcpinfo_message[255];
+    char tcpinfo_message[1024];
     signed char tmp_state = test->state;
     /*!!! Why is this read() and not Nread()? */
     if ((rval = read(test->ctrl_sck, (char*) &test->state, sizeof(signed char))) <= 0) {
@@ -320,7 +320,7 @@ iperf_handle_message_client(struct iperf_test *test)
             errno = ntohl(err);
             return -1;
         case IPERF_KPI:
-            if ((rval = read(test->ctrl_sck, (char*) tcpinfo_message, 129)) <= 0) {
+            if ((rval = read(test->ctrl_sck, (char*) tcpinfo_message, 1024)) <= 0) {
                 if (rval == 0) {
                     i_errno = IECTRLCLOSE;
                     return -1;
