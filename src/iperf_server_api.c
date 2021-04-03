@@ -109,7 +109,7 @@ iperf_server_listen(struct iperf_test *test)
 int
 iperf_accept(struct iperf_test *test)
 {
-    int s;
+    int s, s1;
     signed char rbuf = ACCESS_DENIED;
     socklen_t len;
     struct sockaddr_storage addr;
@@ -119,7 +119,22 @@ iperf_accept(struct iperf_test *test)
         i_errno = IEACCEPT;
         return -1;
     }
-
+    if(test->get_receiver_kpi){
+        if((s1 = accept(test->listener, (struct sockaddr *) &addr, &len))<0){
+            i_errno = IEACCEPT;
+            return -1;
+        }
+        if(test->kpi_sck == -1){
+            test->kpi_sck = s1; 
+            // set TCP_NODELAY for lower latency on kpi control messages
+            int flag = 1;
+            if (setsockopt(test->kpi_sck, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int))) {
+                i_errno = IESETNODELAY;
+                return -1;
+            }
+        }
+    	fprintf(stderr, "Just create kpi channel (%d)\n", s1);
+    }
     if (test->ctrl_sck == -1) {
         /* Server free, accept new client */
         test->ctrl_sck = s;
@@ -168,7 +183,9 @@ iperf_handle_message_server(struct iperf_test *test)
 {
     int rval;
     struct iperf_stream *sp;
-
+    char tcpinfo_message[255];
+    signed char tmp_state = test->state;
+    
     // XXX: Need to rethink how this behaves to fit API
     if ((rval = Nread(test->ctrl_sck, (char*) &test->state, sizeof(signed char), Ptcp)) <= 0) {
         if (rval == 0) {
@@ -181,7 +198,6 @@ iperf_handle_message_server(struct iperf_test *test)
             return -1;
         }
     }
-
     switch(test->state) {
         case TEST_START:
             break;
@@ -226,6 +242,20 @@ iperf_handle_message_server(struct iperf_test *test)
             }
             test->state = IPERF_DONE;
             break;
+        case IPERF_KPI:
+            if ((rval = read(test->ctrl_sck, (char*) tcpinfo_message, 129)) <= 0) {
+                if (rval == 0) {
+                    i_errno = IECTRLCLOSE;
+                    return -1;
+                } else {
+                    i_errno = IERECVMESSAGE;
+                    return -1;
+                }
+            }
+            tcpinfo_message[rval] = '\0';
+            fprintf(stderr, "%s\n",tcpinfo_message);
+            test->state = tmp_state;
+            break;
         default:
             i_errno = IEMESSAGE;
             return -1;
@@ -252,6 +282,7 @@ server_timer_proc(TimerClientData client_data, struct iperf_time *nowP)
         iperf_free_stream(sp);
     }
     close(test->ctrl_sck);
+    close(test->kpi_sck);
 }
 
 static void
@@ -384,7 +415,11 @@ cleanup_server(struct iperf_test *test)
     if (test->prot_listener > -1) {     // May remain open if create socket failed
 	close(test->prot_listener);
     }
-
+    
+    if (test->kpi_sck > 0) {
+	close(test->kpi_sck);
+    }
+    
     /* Cancel any remaining timers. */
     if (test->stats_timer != NULL) {
 	tmr_cancel(test->stats_timer);

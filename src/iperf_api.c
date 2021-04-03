@@ -142,6 +142,12 @@ iperf_get_control_socket(struct iperf_test *ipt)
 }
 
 int
+iperf_get_kpi_socket(struct iperf_test *ipt)
+{
+    return ipt->kpi_sck;
+}
+
+int
 iperf_get_control_socket_mss(struct iperf_test *ipt)
 {
     return ipt->ctrl_sck_mss;
@@ -325,6 +331,12 @@ int
 iperf_get_test_get_server_output(struct iperf_test *ipt)
 {
     return ipt->get_server_output;
+}
+
+int
+iperf_get_test_get_receiver_kpi(struct iperf_test *ipt)
+{
+    return ipt->get_receiver_kpi;
 }
 
 char
@@ -639,6 +651,12 @@ void
 iperf_set_test_get_server_output(struct iperf_test *ipt, int get_server_output)
 {
     ipt->get_server_output = get_server_output;
+}
+
+void
+iperf_set_test_get_receiver_kpi(struct iperf_test *ipt, int get_receiver_kpi)
+{
+    ipt->get_receiver_kpi = get_receiver_kpi;
 }
 
 void
@@ -1009,6 +1027,7 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
         {"idle-timeout", required_argument, NULL, OPT_IDLE_TIMEOUT},
         {"rcv-timeout", required_argument, NULL, OPT_RCV_TIMEOUT},
         {"debug", no_argument, NULL, 'd'},
+        {"get-receiver-kpi", no_argument, NULL, OPT_GET_RECEIVER_KPI},
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}
     };
@@ -1399,6 +1418,9 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 		test->get_server_output = 1;
 		client_flag = 1;
 		break;
+	    case OPT_GET_RECEIVER_KPI:
+		test->get_receiver_kpi = 1;
+		break;
 	    case OPT_UDP_COUNTERS_64BIT:
 		test->udp_counters_64bit = 1;
 		break;
@@ -1628,8 +1650,25 @@ int iperf_open_logfile(struct iperf_test *test)
 int
 iperf_set_send_state(struct iperf_test *test, signed char state)
 {
-    test->state = state;
+    if(state != IPERF_KPI)
+        test->state = state;
     if (Nwrite(test->ctrl_sck, (char*) &state, sizeof(state), Ptcp) < 0) {
+	i_errno = IESENDMESSAGE;
+	return -1;
+    }
+    return 0;
+}
+
+int 
+iperf_send_tcpinfo(struct iperf_test *test, struct iperf_interval_results *r){
+    signed char state = IPERF_KPI;
+    if (Nwrite(test->ctrl_sck, (char*) &state, sizeof(state), Ptcp) < 0) {
+	i_errno = IESENDMESSAGE;
+	return -1;
+    }
+    char tcpinfo_message[255];
+    build_tcpinfo_message(r, tcpinfo_message);
+    if (Nwrite(test->ctrl_sck, (char*) tcpinfo_message, strlen(tcpinfo_message), Ptcp) < 0) {
 	i_errno = IESENDMESSAGE;
 	return -1;
     }
@@ -2631,6 +2670,7 @@ iperf_defaults(struct iperf_test *testp)
     testp->remote_congestion_used = NULL;
     testp->server_port = PORT;
     testp->ctrl_sck = -1;
+    testp->kpi_sck  = -1;
     testp->prot_listener = -1;
     testp->other_side_has_retransmits = 0;
 
@@ -2913,6 +2953,7 @@ iperf_reset_test(struct iperf_test *test)
     
     test->ctrl_sck = -1;
     test->prot_listener = -1;
+    test->kpi_sck  = -1;
 
     test->bytes_sent = 0;
     test->blocks_sent = 0;
@@ -3250,6 +3291,16 @@ iperf_print_intermediate(struct iperf_test *test)
                     total_packets += irp->interval_packet_count;
                     lost_packets += irp->interval_cnt_error;
                     avg_jitter += irp->jitter;
+                }
+                if(test->get_receiver_kpi){
+                    if(test->role == 'c'){
+                        //fprintf(stderr, "should receive kpi\n");
+                        iperf_send_tcpinfo(test, irp);
+                    }
+                    else{
+                        iperf_send_tcpinfo(test, irp);
+                        //fprintf(stderr, "should send kpi\n");
+                    }
                 }
             }
         }

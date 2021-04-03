@@ -135,7 +135,6 @@ static void
 client_stats_timer_proc(TimerClientData client_data, struct iperf_time *nowP)
 {
     struct iperf_test *test = client_data.p;
-
     if (test->done)
         return;
     if (test->stats_callback)
@@ -238,7 +237,8 @@ iperf_handle_message_client(struct iperf_test *test)
 {
     int rval;
     int32_t err;
-
+    char tcpinfo_message[255];
+    signed char tmp_state = test->state;
     /*!!! Why is this read() and not Nread()? */
     if ((rval = read(test->ctrl_sck, (char*) &test->state, sizeof(signed char))) <= 0) {
         if (rval == 0) {
@@ -249,7 +249,6 @@ iperf_handle_message_client(struct iperf_test *test)
             return -1;
         }
     }
-
     switch (test->state) {
         case PARAM_EXCHANGE:
             if (iperf_exchange_parameters(test) < 0)
@@ -320,6 +319,20 @@ iperf_handle_message_client(struct iperf_test *test)
             }
             errno = ntohl(err);
             return -1;
+        case IPERF_KPI:
+            if ((rval = read(test->ctrl_sck, (char*) tcpinfo_message, 129)) <= 0) {
+                if (rval == 0) {
+                    i_errno = IECTRLCLOSE;
+                    return -1;
+                } else {
+                    i_errno = IERECVMESSAGE;
+                    return -1;
+                }
+            }
+            tcpinfo_message[rval] = '\0';
+            fprintf(stderr, "%s\n",tcpinfo_message);
+            test->state = tmp_state;
+            break;
         default:
             i_errno = IEMESSAGE;
             return -1;
@@ -346,6 +359,13 @@ iperf_connect(struct iperf_test *test)
     if (test->ctrl_sck < 0) {
         i_errno = IECONNECT;
         return -1;
+    }
+    
+    if(test->get_receiver_kpi){
+        if(test->kpi_sck < 0)
+            //create the kpi control channel
+    	    test->kpi_sck = netdial(test->settings->domain, Ptcp, test->bind_address, test->bind_dev, 0, test->server_hostname, test->server_port, test->settings->connect_timeout);
+    	fprintf(stderr, "just create kpi channel %d\n", test->kpi_sck);
     }
 
     // set TCP_NODELAY for lower latency on control messages

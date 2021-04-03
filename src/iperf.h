@@ -288,6 +288,7 @@ struct iperf_test
     int       prot_listener;
 
     int	      ctrl_sck_mss;			/* MSS for the control channel */
+    int       kpi_sck;
 
 #if defined(HAVE_SSL)
     char      *server_authorized_users;
@@ -306,6 +307,7 @@ struct iperf_test
     int	      zerocopy;                         /* -Z option - use sendfile */
     int       debug;				/* -d option - enable debug */
     int	      get_server_output;		/* --get-server-output */
+    int       get_receiver_kpi;                 /* --get-receiver-kpi  */
     int	      udp_counters_64bit;		/* --use-64-bit-udp-counters */
     int       forceflush; /* --forceflush - flushing output at every interval */
     int	      multisend;

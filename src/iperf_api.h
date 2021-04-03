@@ -87,6 +87,7 @@ typedef uint64_t iperf_size_t;
 #define OPT_IDLE_TIMEOUT 25
 #define OPT_DONT_FRAGMENT 26
 #define OPT_RCV_TIMEOUT 27
+#define OPT_GET_RECEIVER_KPI 28
 
 /* states */
 #define TEST_START 1
@@ -105,6 +106,7 @@ typedef uint64_t iperf_size_t;
 #define DISPLAY_RESULTS 14
 #define IPERF_START 15
 #define IPERF_DONE 16
+#define IPERF_KPI  17
 #define ACCESS_DENIED (-1)
 #define SERVER_ERROR (-2)
 
@@ -307,6 +309,8 @@ void iperf_on_new_stream(struct iperf_stream *);
 void iperf_on_test_start(struct iperf_test *);
 void iperf_on_connect(struct iperf_test *);
 void iperf_on_test_finish(struct iperf_test *);
+
+int iperf_send_tcpinfo(struct iperf_test *test, struct iperf_interval_results *r);
 
 extern jmp_buf env;
 
