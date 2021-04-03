@@ -1660,9 +1660,14 @@ iperf_send_tcpinfo(struct iperf_test *test, struct iperf_interval_results *r){
 	i_errno = IESENDMESSAGE;
 	return -1;
     }
-    char tcpinfo_message[1024];
+    char tcpinfo_message[255];
+    char message[1024];
+    char tcpinfo_message_len[4];
     build_tcpinfo_message(r, tcpinfo_message);
-    if (Nwrite(test->ctrl_sck, (char*) tcpinfo_message, strlen(tcpinfo_message), Ptcp) < 0) {
+    sprintf(tcpinfo_message_len, "%ld", strlen(tcpinfo_message) );
+    sprintf(message, "%ld %ld %s", strlen(tcpinfo_message), 
+        strlen(tcpinfo_message_len), tcpinfo_message);
+    if (Nwrite(test->ctrl_sck, (char*) message, strlen(message), Ptcp) < 0) {
 	i_errno = IESENDMESSAGE;
 	return -1;
     }

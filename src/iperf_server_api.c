@@ -169,7 +169,7 @@ iperf_handle_message_server(struct iperf_test *test)
     struct iperf_stream *sp;
     char tcpinfo_message[1024];
     signed char tmp_state = test->state;
-    
+    int tcpinfo_message_len, k;
     // XXX: Need to rethink how this behaves to fit API
     if ((rval = Nread(test->ctrl_sck, (char*) &test->state, sizeof(signed char), Ptcp)) <= 0) {
         if (rval == 0) {
@@ -236,6 +236,9 @@ iperf_handle_message_server(struct iperf_test *test)
                     return -1;
                 }
             }
+            sscanf(tcpinfo_message, "%d %d", &tcpinfo_message_len, &k);
+            if(rval != k+2+1+tcpinfo_message_len)
+                fprintf(stderr, "Un problème (%d:%d)\n", rval, k+2+tcpinfo_message_len);
             tcpinfo_message[rval] = '\0';
             fprintf(stderr, "%s\n",tcpinfo_message);
             test->state = tmp_state;

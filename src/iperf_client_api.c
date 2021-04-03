@@ -239,6 +239,7 @@ iperf_handle_message_client(struct iperf_test *test)
     int32_t err;
     char tcpinfo_message[1024];
     signed char tmp_state = test->state;
+    int tcpinfo_message_len, k;
     /*!!! Why is this read() and not Nread()? */
     if ((rval = read(test->ctrl_sck, (char*) &test->state, sizeof(signed char))) <= 0) {
         if (rval == 0) {
@@ -329,6 +330,9 @@ iperf_handle_message_client(struct iperf_test *test)
                     return -1;
                 }
             }
+            sscanf(tcpinfo_message, "%d %d", &tcpinfo_message_len, &k);
+            if(rval != k+2+1+tcpinfo_message_len)
+                fprintf(stderr, "Un problème (%d:%d)\n", rval, k+2+tcpinfo_message_len);
             tcpinfo_message[rval] = '\0';
             fprintf(stderr, "%s\n",tcpinfo_message);
             test->state = tmp_state;
