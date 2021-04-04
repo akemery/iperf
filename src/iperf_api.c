@@ -1654,7 +1654,8 @@ iperf_set_send_state(struct iperf_test *test, signed char state)
 }
 
 int 
-iperf_send_tcpinfo(struct iperf_test *test, struct iperf_interval_results *r){
+iperf_send_tcpinfo(struct iperf_test *test, struct iperf_stream *sp,
+    struct iperf_interval_results *r){
     signed char state = IPERF_KPI;
     if (Nwrite(test->ctrl_sck, (char*) &state, sizeof(state), Ptcp) < 0) {
 	i_errno = IESENDMESSAGE;
@@ -1662,10 +1663,11 @@ iperf_send_tcpinfo(struct iperf_test *test, struct iperf_interval_results *r){
     }
     char tcpinfo_message[255];
     char message[1024];
-    char tcpinfo_message_len[4];
+    char tcpinfo_message_len[20];
+    save_tcpinfo(sp, r);
     build_tcpinfo_message(r, tcpinfo_message);
-    sprintf(tcpinfo_message_len, "%ld", strlen(tcpinfo_message) );
-    sprintf(message, "%ld %ld %s", strlen(tcpinfo_message), 
+    sprintf(tcpinfo_message_len, "%19ld", strlen(tcpinfo_message) );
+    sprintf(message, "%19ld %19ld %s", strlen(tcpinfo_message), 
         strlen(tcpinfo_message_len), tcpinfo_message);
     if (Nwrite(test->ctrl_sck, (char*) message, strlen(message), Ptcp) < 0) {
 	i_errno = IESENDMESSAGE;
@@ -3292,10 +3294,10 @@ iperf_print_intermediate(struct iperf_test *test)
                 if(test->get_receiver_kpi){
                     if(test->role == 'c'){
                         //fprintf(stderr, "should receive kpi\n");
-                        iperf_send_tcpinfo(test, irp);
+                        iperf_send_tcpinfo(test, sp, irp);
                     }
                     else{
-                        iperf_send_tcpinfo(test, irp);
+                        iperf_send_tcpinfo(test, sp, irp);
                         //fprintf(stderr, "should send kpi\n");
                     }
                 }

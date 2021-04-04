@@ -310,7 +310,8 @@ void iperf_on_test_start(struct iperf_test *);
 void iperf_on_connect(struct iperf_test *);
 void iperf_on_test_finish(struct iperf_test *);
 
-int iperf_send_tcpinfo(struct iperf_test *test, struct iperf_interval_results *r);
+int iperf_send_tcpinfo(struct iperf_test *test, struct iperf_stream *sp,
+    struct iperf_interval_results *r);
 
 extern jmp_buf env;
 

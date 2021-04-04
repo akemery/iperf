@@ -321,7 +321,7 @@ iperf_handle_message_client(struct iperf_test *test)
             errno = ntohl(err);
             return -1;
         case IPERF_KPI:
-            if ((rval = read(test->ctrl_sck, (char*) tcpinfo_message, 1024)) <= 0) {
+            if ((rval = read(test->ctrl_sck, (char*) tcpinfo_message, 40)) <= 0) {
                 if (rval == 0) {
                     i_errno = IECTRLCLOSE;
                     return -1;
@@ -331,8 +331,17 @@ iperf_handle_message_client(struct iperf_test *test)
                 }
             }
             sscanf(tcpinfo_message, "%d %d", &tcpinfo_message_len, &k);
-            if(rval != k+2+1+tcpinfo_message_len)
-                fprintf(stderr, "Un problème (%d:%d)\n", rval, k+2+tcpinfo_message_len);
+            /*if(rval != k+2+1+tcpinfo_message_len)
+                fprintf(stderr, "Un problème (%s:%d:%d)\n", tcpinfo_message, rval, k+2+1+tcpinfo_message_len);*/
+            if ((rval = read(test->ctrl_sck, (char*) tcpinfo_message, tcpinfo_message_len)) <= 0) {
+                if (rval == 0) {
+                    i_errno = IECTRLCLOSE;
+                    return -1;
+                } else {
+                    i_errno = IERECVMESSAGE;
+                    return -1;
+                }
+            }
             tcpinfo_message[rval] = '\0';
             fprintf(stderr, "%s\n",tcpinfo_message);
             test->state = tmp_state;
