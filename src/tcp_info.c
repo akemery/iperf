@@ -102,10 +102,11 @@ save_tcpinfo(struct iperf_stream *sp, struct iperf_interval_results *irp)
 	iperf_err(sp->test, "getsockopt - %s", strerror(errno));
 
     if (sp->test->debug) {
-	printf("tcpi_snd_cwnd %u tcpi_snd_mss %u tcpi_rtt %u\n",
+	printf("tcpi_snd_cwnd %u tcpi_snd_mss %u tcpi_rtt %u tcpi_rto %d\n",
 	       irp->tcpInfo.tcpi_snd_cwnd, irp->tcpInfo.tcpi_snd_mss,
-	       irp->tcpInfo.tcpi_rtt);
+	       irp->tcpInfo.tcpi_rtt, irp->tcpInfo.tcpi_rto);
     }
+    
 
 #endif
 }

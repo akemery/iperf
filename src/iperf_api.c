@@ -77,6 +77,7 @@
 #include "iperf_api.h"
 #include "iperf_udp.h"
 #include "iperf_tcp.h"
+#include "bpf_code_loader.h"
 #if defined(HAVE_SCTP_H)
 #include "iperf_sctp.h"
 #endif /* HAVE_SCTP_H */
@@ -1022,6 +1023,9 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
         {"rcv-timeout", required_argument, NULL, OPT_RCV_TIMEOUT},
         {"debug", no_argument, NULL, 'd'},
         {"get-receiver-kpi", no_argument, NULL, OPT_GET_RECEIVER_KPI},
+        {"send-bpf-code", no_argument, NULL, OPT_SEND_BPF_CODE},
+        {"bpf-code-file", required_argument, NULL, 'e'},
+        {"bpf-code-load_time", required_argument, NULL, 'U'},
         {"help", no_argument, NULL, 'h'},
         {NULL, 0, NULL, 0}
     };
@@ -1044,7 +1048,7 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
     char *client_username = NULL, *client_rsa_public_key = NULL, *server_rsa_private_key = NULL;
 #endif /* HAVE_SSL */
 
-    while ((flag = getopt_long(argc, argv, "p:f:i:D1VJvsc:ub:t:n:k:l:P:Rw:B:M:N46S:L:ZO:F:A:T:C:dI:hX:", longopts, NULL)) != -1) {
+    while ((flag = getopt_long(argc, argv, "p:f:i:D1VJvsc:ub:t:n:k:l:P:Rw:B:M:N46S:L:ZO:F:A:T:C:dI:hX:e:U:", longopts, NULL)) != -1) {
         switch (flag) {
             case 'p':
 		portno = atoi(optarg);
@@ -1178,6 +1182,12 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
                 }
 		duration_flag = 1;
 		client_flag = 1;
+                break;
+             case 'e':
+                test->bpf_code_file = strdup(optarg);
+                break;
+            case 'U':
+                test->bpf_code_load_time = atoi(optarg);
                 break;
             case 'n':
                 test->settings->bytes = unit_atoi(optarg);
@@ -1415,6 +1425,9 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 	    case OPT_GET_RECEIVER_KPI:
 		test->get_receiver_kpi = 1;
 		break;
+            case OPT_SEND_BPF_CODE:
+                test->send_bpf_code = 1;
+                break;
 	    case OPT_UDP_COUNTERS_64BIT:
 		test->udp_counters_64bit = 1;
 		break;
@@ -1624,6 +1637,11 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
         warning("Debug output (-d) may interfere with JSON output (-J)");
     }
 
+    if(test->send_bpf_code && ((test->bpf_code_file == NULL) ||
+        (test->bpf_code_load_time == -1))){
+        warning("Warnining send_bpf_code need bpf_file and bpf_load_time");
+        fprintf(stderr, "%s %d\n", test->bpf_code_file, test->bpf_code_load_time);    
+    }
     return 0;
 }
 
@@ -1678,6 +1696,43 @@ iperf_send_tcpinfo(struct iperf_test *test){
 	        return -1;
             }
 	}
+    }
+    return 0;
+}
+
+int
+iperf_send_ebpfcode(struct iperf_test *test){
+    signed char state = IPERF_BPF_CODE;
+    int bpf_file_fd, ret;
+    char byte_code_size[20];
+    if(test->send_bpf_code && 
+      ((test->bpf_code_file == NULL) || (test->bpf_code_load_time == -1))){
+        /*customed errno*/
+        return -1;
+    }
+    bpf_file_fd = open(test->bpf_code_file, O_RDONLY, 0);
+    if(bpf_file_fd < 0){
+        /*customed errno*/
+        return -1;
+    }
+    ret = iperf_cpy_bpf_code(test, bpf_file_fd);
+    if(ret < 0){
+        /* customed errno*/
+        return -1;
+    }
+    if (Nwrite(test->ctrl_sck, (char*) &state, sizeof(state), Ptcp) < 0) {
+        i_errno = IESENDMESSAGE;
+        return -1;
+    }
+    sprintf(byte_code_size, "%19d", ret);
+    if (Nwrite(test->ctrl_sck, (char*) byte_code_size, sizeof(byte_code_size), Ptcp) < 0) {
+        i_errno = IESENDMESSAGE;
+        return -1;
+    }
+    
+    if (Nwrite(test->ctrl_sck, (char*) test->bpf_code_buffer, ret, Ptcp) < 0) {
+        i_errno = IESENDMESSAGE;
+        return -1;
     }
     return 0;
 }
@@ -2679,6 +2734,10 @@ iperf_defaults(struct iperf_test *testp)
     testp->ctrl_sck = -1;
     testp->prot_listener = -1;
     testp->other_side_has_retransmits = 0;
+    testp->get_receiver_kpi = 0;
+    testp->send_bpf_code    = 0;
+    testp->bpf_code_file    = NULL;
+    testp->bpf_code_load_time = -1;
 
     testp->stats_callback = iperf_stats_callback;
     testp->reporter_callback = iperf_reporter_callback;
@@ -3864,6 +3923,8 @@ iperf_reporter_callback(struct iperf_test *test)
         case STREAM_RUNNING:
             if(test->get_receiver_kpi)
                 iperf_send_tcpinfo(test);
+            if(test->send_bpf_code)
+                iperf_send_ebpfcode(test);
             /* print interval results for each stream */
             iperf_print_intermediate(test);
             break;

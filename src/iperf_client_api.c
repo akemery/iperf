@@ -235,11 +235,11 @@ create_client_omit_timer(struct iperf_test * test)
 int
 iperf_handle_message_client(struct iperf_test *test)
 {
-    int rval;
+    int rval = 0;
     int32_t err;
-    char tcpinfo_message[1024];
+    char message[1024];
     signed char tmp_state = test->state;
-    int tcpinfo_message_len, k;
+    int message_len, k, offset = 0;
     /*!!! Why is this read() and not Nread()? */
     if ((rval = read(test->ctrl_sck, (char*) &test->state, sizeof(signed char))) <= 0) {
         if (rval == 0) {
@@ -321,7 +321,7 @@ iperf_handle_message_client(struct iperf_test *test)
             errno = ntohl(err);
             return -1;
         case IPERF_KPI:
-            if ((rval = read(test->ctrl_sck, (char*) tcpinfo_message, 40)) <= 0) {
+            if ((rval = read(test->ctrl_sck, (char*) message, 40)) <= 0) {
                 if (rval == 0) {
                     i_errno = IECTRLCLOSE;
                     return -1;
@@ -330,10 +330,10 @@ iperf_handle_message_client(struct iperf_test *test)
                     return -1;
                 }
             }
-            sscanf(tcpinfo_message, "%d %d", &tcpinfo_message_len, &k);
+            sscanf(message, "%d %d", &message_len, &k);
             /*if(rval != k+2+1+tcpinfo_message_len)
                 fprintf(stderr, "Un problème (%s:%d:%d)\n", tcpinfo_message, rval, k+2+1+tcpinfo_message_len);*/
-            if ((rval = read(test->ctrl_sck, (char*) tcpinfo_message, tcpinfo_message_len)) <= 0) {
+            if ((rval = read(test->ctrl_sck, (char*) message, message_len)) <= 0) {
                 if (rval == 0) {
                     i_errno = IECTRLCLOSE;
                     return -1;
@@ -342,8 +342,35 @@ iperf_handle_message_client(struct iperf_test *test)
                     return -1;
                 }
             }
-            tcpinfo_message[rval] = '\0';
-            fprintf(stderr, "%s\n",tcpinfo_message);
+            message[rval] = '\0';
+            fprintf(stderr, "%s\n",message);
+            test->state = tmp_state;
+            break;
+        case IPERF_BPF_CODE:
+            if ((rval = read(test->ctrl_sck, (char*) message, 20)) <= 0) {
+                if (rval == 0) {
+                    i_errno = IECTRLCLOSE;
+                    return -1;
+                } else {
+                    i_errno = IERECVMESSAGE;
+                    return -1;
+                }
+            }
+            sscanf(message, "%d", &message_len);
+            test->bpf_code_buffer = malloc(message_len);
+            do{
+                rval = read(test->ctrl_sck, (char*) (test->bpf_code_buffer+offset), message_len-offset);
+                offset+=rval;
+            }while((offset < message_len) && (errno == EINTR)); 
+            if (rval == 0) {
+                i_errno = IECTRLCLOSE;
+                return -1;
+            } 
+            if(rval < 0){
+                i_errno = IERECVMESSAGE;
+                return -1;
+            }
+            fprintf(stderr, "receive IPERF_BPF_CODE (%d:%d) (%s)\n", message_len, rval, strerror(errno));
             test->state = tmp_state;
             break;
         default:

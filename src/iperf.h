@@ -308,6 +308,7 @@ struct iperf_test
     int       debug;				/* -d option - enable debug */
     int	      get_server_output;		/* --get-server-output */
     int       get_receiver_kpi;                 /* --get-receiver-kpi  */
+    int       send_bpf_code;                    /* --send-bpf-code */
     int	      udp_counters_64bit;		/* --use-64-bit-udp-counters */
     int       forceflush; /* --forceflush - flushing output at every interval */
     int	      multisend;
@@ -315,6 +316,11 @@ struct iperf_test
     int       timestamps;			/* --timestamps */
     char     *timestamp_format;
 
+    char     *bpf_code_file;                    /* -e bpf code to send to peer */
+    int      bpf_code_load_time;                /* -l when to send and load bpf_code*/
+    uint8_t  *bpf_code_buffer;                  /* buffer to hold bpf_code*/
+    int      bpf_code_size;                     /* bpf code size*/
+    int      bpf_code_ops_type;                 /* bpf_code ops type (CC, ...) */
     char     *json_output_string; /* rendered JSON output if json_output is set */
     /* Select related parameters */
     int       max_fd;
