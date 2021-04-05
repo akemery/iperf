@@ -72,4 +72,12 @@ host=$1
 # test congestion control option (linux only)
 ./src/iperf3 -c $host -C reno -V
 
+# get receiver kpi
+./src/iperf3 -c $host --get-receiver-kpi
+./src/iperf3 -c $host --get-receiver-kpi -R
+./src/iperf3 -c $host --get-receiver-kpi --bidir
+./src/iperf3 -c $host --get-receiver-kpi -R --get-server-output
+
+
+
 

@@ -3291,19 +3291,10 @@ iperf_print_intermediate(struct iperf_test *test)
                     lost_packets += irp->interval_cnt_error;
                     avg_jitter += irp->jitter;
                 }
-                if(test->get_receiver_kpi){
-                    if(test->role == 'c'){
-                        //fprintf(stderr, "should receive kpi\n");
-                        iperf_send_tcpinfo(test, sp, irp);
-                    }
-                    else{
-                        iperf_send_tcpinfo(test, sp, irp);
-                        //fprintf(stderr, "should send kpi\n");
-                    }
-                }
+                if(test->get_receiver_kpi)
+                    iperf_send_tcpinfo(test, sp, irp);
             }
         }
-
         /* next build string with sum of all streams */
         if (test->num_streams > 1 || test->json_output) {
             sp = SLIST_FIRST(&test->streams); /* reset back to 1st stream */
