@@ -1654,9 +1654,10 @@ iperf_set_send_state(struct iperf_test *test, signed char state)
 }
 
 int 
-iperf_send_tcpinfo(struct iperf_test *test, struct iperf_stream *sp,
-    struct iperf_interval_results *r){
+iperf_send_tcpinfo(struct iperf_test *test){
     signed char state = IPERF_KPI;
+    struct iperf_stream *sp;
+    struct iperf_interval_results *r;
     if (Nwrite(test->ctrl_sck, (char*) &state, sizeof(state), Ptcp) < 0) {
 	i_errno = IESENDMESSAGE;
 	return -1;
@@ -1664,14 +1665,19 @@ iperf_send_tcpinfo(struct iperf_test *test, struct iperf_stream *sp,
     char tcpinfo_message[255];
     char message[1024];
     char tcpinfo_message_len[20];
-    save_tcpinfo(sp, r);
-    build_tcpinfo_message(r, tcpinfo_message);
-    sprintf(tcpinfo_message_len, "%19ld", strlen(tcpinfo_message) );
-    sprintf(message, "%19ld %19ld %s", strlen(tcpinfo_message), 
-        strlen(tcpinfo_message_len), tcpinfo_message);
-    if (Nwrite(test->ctrl_sck, (char*) message, strlen(message), Ptcp) < 0) {
-	i_errno = IESENDMESSAGE;
-	return -1;
+    SLIST_FOREACH(sp, &test->streams, streams) {
+	r = TAILQ_LAST(&sp->result->interval_results, irlisthead);
+	if (r) {
+	    save_tcpinfo(sp, r);
+	    build_tcpinfo_message(r, tcpinfo_message);
+	    sprintf(tcpinfo_message_len, "%19ld", strlen(tcpinfo_message) );
+            sprintf(message, "%19ld %19ld %s", strlen(tcpinfo_message), 
+                strlen(tcpinfo_message_len), tcpinfo_message);
+            if (Nwrite(test->ctrl_sck, (char*) message, strlen(message), Ptcp) < 0) {
+	        i_errno = IESENDMESSAGE;
+	        return -1;
+            }
+	}
     }
     return 0;
 }
@@ -3291,8 +3297,6 @@ iperf_print_intermediate(struct iperf_test *test)
                     lost_packets += irp->interval_cnt_error;
                     avg_jitter += irp->jitter;
                 }
-                if(test->get_receiver_kpi)
-                    iperf_send_tcpinfo(test, sp, irp);
             }
         }
         /* next build string with sum of all streams */
@@ -3858,6 +3862,8 @@ iperf_reporter_callback(struct iperf_test *test)
     switch (test->state) {
         case TEST_RUNNING:
         case STREAM_RUNNING:
+            if(test->get_receiver_kpi)
+                iperf_send_tcpinfo(test);
             /* print interval results for each stream */
             iperf_print_intermediate(test);
             break;
