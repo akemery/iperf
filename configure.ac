@@ -85,6 +85,11 @@ echo "inet_ntop()"
 exit 1
 ])
 
+AC_SEARCH_LIBS(bpf_map__def, [bpf], [], [
+echo "bpf_map__def()"
+exit 1
+])
+
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 

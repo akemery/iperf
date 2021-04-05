@@ -10,6 +10,7 @@ include_HEADERS         = iperf_api.h                                   # Define
 
 # Specify the source files and flags for the iperf library
 libiperf_la_SOURCES     = \
+                        bpf_code_loader.c \
                         cjson.c \
                         cjson.h \
                         flowlabel.h \
