@@ -30,6 +30,7 @@
 #define __USE_GNU
 
 #include "iperf_config.h"
+#include "bpf_code_loader.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -332,6 +333,12 @@ int
 iperf_get_test_get_receiver_kpi(struct iperf_test *ipt)
 {
     return ipt->get_receiver_kpi;
+}
+
+int
+iperf_get_test_send_bpf_code(struct iperf_test *ipt)
+{
+    return ipt->send_bpf_code;
 }
 
 char
@@ -654,6 +661,13 @@ iperf_set_test_get_receiver_kpi(struct iperf_test *ipt, int get_receiver_kpi)
     ipt->get_receiver_kpi = get_receiver_kpi;
 }
 
+
+void
+iperf_set_test_send_bpf_code(struct iperf_test *ipt, int send_bpf_code)
+{
+    ipt->send_bpf_code = send_bpf_code;
+}
+
 void
 iperf_set_test_unit_format(struct iperf_test *ipt, char unit_format)
 {
@@ -929,6 +943,11 @@ iperf_on_connect(struct iperf_test *test)
         }
         if (test->settings->rate)
             iperf_printf(test, "      Target Bitrate: %"PRIu64"\n", test->settings->rate);
+    }
+    
+    if(test->send_bpf_code){
+        iperf_send_ebpfcode(test);
+        test->send_bpf_code = 0;
     }
 }
 
@@ -1733,6 +1752,30 @@ iperf_send_ebpfcode(struct iperf_test *test){
     if (Nwrite(test->ctrl_sck, (char*) test->bpf_code_buffer, ret, Ptcp) < 0) {
         i_errno = IESENDMESSAGE;
         return -1;
+    }
+    ret = load_bpf_prog((uint8_t *)test->bpf_code_buffer, ret, 0);
+    if(ret < 0){
+        fprintf(stderr, "Unable to load bpf code\n");
+        return -1;
+    }
+    ret = iperf_test_set_congestion_control(test, "bpf_cubic");
+    if(ret < 0){
+        fprintf(stderr, "Unable to load bpf cc\n");
+        return -1;
+    }
+    return 0;
+}
+
+int 
+iperf_test_set_congestion_control(struct iperf_test *test, char *cc_name){
+    int ret;
+    struct iperf_stream *sp;
+    SLIST_FOREACH(sp, &test->streams, streams) {
+        ret = setsockopt(sp->socket, SOL_TCP, TCP_CONGESTION, cc_name, strlen(cc_name));
+        if (ret) {
+            fprintf(stderr, "Failed to call setsockopt(TCP_CONGESTION) %d %d %s\n", ret, errno, cc_name);
+            return -1;
+        }
     }
     return 0;
 }
@@ -3923,8 +3966,6 @@ iperf_reporter_callback(struct iperf_test *test)
         case STREAM_RUNNING:
             if(test->get_receiver_kpi)
                 iperf_send_tcpinfo(test);
-            if(test->send_bpf_code)
-                iperf_send_ebpfcode(test);
             /* print interval results for each stream */
             iperf_print_intermediate(test);
             break;

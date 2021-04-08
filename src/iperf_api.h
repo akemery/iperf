@@ -314,6 +314,7 @@ void iperf_on_test_finish(struct iperf_test *);
 
 int iperf_send_tcpinfo(struct iperf_test *test);
 int iperf_send_ebpfcode(struct iperf_test *test);
+int iperf_test_set_congestion_control(struct iperf_test *test, char *cc_name);
 
 extern jmp_buf env;
 

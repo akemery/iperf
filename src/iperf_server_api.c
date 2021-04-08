@@ -59,6 +59,7 @@
 #include "units.h"
 #include "iperf_util.h"
 #include "iperf_locale.h"
+#include "bpf_code_loader.h"
 
 #if defined(HAVE_TCP_CONGESTION)
 #if !defined(TCP_CA_NAME_MAX)
@@ -264,9 +265,14 @@ iperf_handle_message_server(struct iperf_test *test)
             sscanf(message, "%d", &message_len);
             test->bpf_code_buffer = malloc(message_len);
             do{
-                rval = read(test->ctrl_sck, (char*) (test->bpf_code_buffer+offset), message_len-offset);
+                rval = read(test->ctrl_sck, 
+                    (char*) (test->bpf_code_buffer+offset), message_len-offset);
+                if((rval < 0) && (errno == EINTR))
+                    continue;
+                if(rval < 0)
+                    break;
                 offset+=rval;
-            }while((offset < message_len) && (errno == EINTR)); 
+            }while(offset < message_len); 
             if (rval == 0) {
                 i_errno = IECTRLCLOSE;
                 return -1;
@@ -275,7 +281,12 @@ iperf_handle_message_server(struct iperf_test *test)
                 i_errno = IERECVMESSAGE;
                 return -1;
             }
-            fprintf(stderr, "receive IPERF_BPF_CODE (%d:%d) (%s)\n", message_len, rval, strerror(errno));
+            rval = load_bpf_prog((uint8_t *)test->bpf_code_buffer, offset, 1);
+            if(rval < 0)
+                fprintf(stderr, "Unable to load bpf code\n");
+            rval = iperf_test_set_congestion_control(test, "bpf_cubic");
+            if(rval < 0)
+                fprintf(stderr, "Unable to load bpf cc\n");
             test->state = tmp_state;
             break;
         default:
