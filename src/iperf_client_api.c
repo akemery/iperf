@@ -44,6 +44,7 @@
 #include "iperf_time.h"
 #include "net.h"
 #include "timer.h"
+#include "bpf_code_loader.h"
 
 #if defined(HAVE_TCP_CONGESTION)
 #if !defined(TCP_CA_NAME_MAX)

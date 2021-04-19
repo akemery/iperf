@@ -197,10 +197,14 @@ int iperf_cpy_bpf_code(struct iperf_test *test, int fd){
   test->bpf_code_buffer = malloc(f_sz);
   do{
       ret = read(fd, test->bpf_code_buffer+offset, f_sz-offset);
+      if((ret < 0) && (errno == EINTR))
+          continue;
+      if(ret < 0)
+          break;
       offset+=ret;
-  }while((offset < f_sz) && (errno == EINTR));
+  }while(offset < f_sz);
   
-  if(ret!=f_sz){
+  if(offset!=f_sz){
     return -1;
   }
   return f_sz;

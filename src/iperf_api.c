@@ -1705,6 +1705,7 @@ iperf_send_tcpinfo(struct iperf_test *test){
     SLIST_FOREACH(sp, &test->streams, streams) {
 	r = TAILQ_LAST(&sp->result->interval_results, irlisthead);
 	if (r) {
+	    fprintf(stderr, "ahah (2)\n");
 	    save_tcpinfo(sp, r);
 	    build_tcpinfo_message(r, tcpinfo_message);
 	    sprintf(tcpinfo_message_len, "%19ld", strlen(tcpinfo_message) );
@@ -3158,6 +3159,7 @@ iperf_reset_stats(struct iperf_test *test)
         rp->bytes_received = 0;
         rp->bytes_sent_this_interval = rp->bytes_received_this_interval = 0;
 	if (test->sender_has_retransmits == 1) {
+	    fprintf(stderr, "ahah (1)\n");
 	    struct iperf_interval_results ir; /* temporary results structure */
 	    save_tcpinfo(sp, &ir);
 	    rp->stream_prev_total_retrans = get_total_retransmits(&ir);
@@ -3204,6 +3206,7 @@ iperf_stats_callback(struct iperf_test *test)
         temp.interval_duration = iperf_time_in_secs(&temp_time);
 	if (test->protocol->id == Ptcp) {
 	    if ( has_tcpinfo()) {
+	        fprintf(stderr, "ahah (3)\n");
 		save_tcpinfo(sp, &temp);
 		if (test->sender_has_retransmits == 1) {
 		    long total_retrans = get_total_retransmits(&temp);
