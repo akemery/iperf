@@ -1754,7 +1754,7 @@ iperf_send_ebpfcode(struct iperf_test *test){
         i_errno = IESENDMESSAGE;
         return -1;
     }
-    ret = load_bpf_prog((uint8_t *)test->bpf_code_buffer, ret, 0);
+    ret = load_bpf_prog((uint8_t *)test->bpf_code_buffer, ret, 1);
     if(ret < 0){
         fprintf(stderr, "Unable to load bpf code\n");
         return -1;
